@@ -1,0 +1,3 @@
+[submodule "third/gnu-coreutils"]
+	path = third/gnu-coreutils
+	url = git://git.sv.gnu.org/coreutils
