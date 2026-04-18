@@ -4,7 +4,25 @@
 #include <string.h>
 #include <sys/stat.h>
 
+static int last_dir = 0;
+
+int is_last_entry(DIR *dir) {
+    long pos = telldir(dir);
+    struct dirent *next;
+    int last = 1;
+    while ((next = readdir(dir)) != NULL) {
+        if (strcmp(next->d_name, ".") != 0 && strcmp(next->d_name, "..") != 0) {
+            last = 0;
+            break;
+        }
+    }
+    seekdir(dir, pos);
+    return last;
+}
+
 void list_dir(const char *path, int level) {
+    
+	
     DIR *dir = opendir(path);
     if (!dir) {
         perror("opendir");
@@ -15,19 +33,29 @@ void list_dir(const char *path, int level) {
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
             continue;
+	
 
-        for (int i = 0; i < level; i++) printf("  ");
+        for (int i = 1; i <= level; i++){
+	       if((last_dir & (1 << i))==0) printf("   |");
+	       else printf("    ");
+	}
+
 
         if (entry->d_type == DT_DIR) {
-            printf("[dir] %s\n", entry->d_name);
+            printf("- %s\n", entry->d_name);
             
 	    char subpath[1024];
             snprintf(subpath, sizeof(subpath), "%s/%s", path, entry->d_name);
-            list_dir(subpath, level + 1);
+            
+	    if(is_last_entry(dir)) last_dir |= (1 << level);
+
+	    list_dir(subpath, level + 1);
+
+
         } else if (entry->d_type == DT_REG) {
-            printf("[file] %s\n", entry->d_name);
+            printf("  %s\n", entry->d_name);
         } else {
-            printf("[other] %s\n", entry->d_name);
+            printf("  %s\n", entry->d_name);
         }
     }
     closedir(dir);
@@ -35,7 +63,7 @@ void list_dir(const char *path, int level) {
 
 int main(int argc, char *argv[]) {
     const char *dir = (argc > 1) ? argv[1] : ".";
-    printf("root: %s\n\n", dir);
-    list_dir(dir, 0);
+    printf(".:%s\n", dir);
+    list_dir(dir, 1);
     return 0;
 }
