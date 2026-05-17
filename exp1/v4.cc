@@ -18,12 +18,10 @@ public:
     virtual int GetTypeId() const = 0;
 
     static std::unordered_map<int, std::function<Serializable*()>> creators;
-    static Serializable* Create(int typeId){return creators[typeId]();} 
-
+    static Serializable* Create(int typeId) { return creators[typeId](); }
 };
 
 std::unordered_map<int, std::function<Serializable*()>> Serializable::creators;
-
 
 class CA_LL : public Serializable {
     std::string key;
@@ -56,7 +54,6 @@ public:
     }
 };
 
-
 class CB_LL : public Serializable {
     std::string description;
     double value;
@@ -88,6 +85,59 @@ public:
     }
 };
 
+class CC_LL : public Serializable {
+    std::string name;
+    std::vector<double> values;
+    int id;
+public:
+    CC_LL(const std::string& n, const std::vector<double>& v, int i)
+        : name(n), values(v), id(i) {}
+    CC_LL() : name(""), values(), id(0) {}
+
+    int GetTypeId() const override { return 2; }
+
+    bool WriteToFd(int fd) const override {
+        size_t len = name.size();
+        if (write(fd, &len, sizeof(len)) != sizeof(len)) return false;
+        if (!name.empty() && write(fd, name.data(), len) != (ssize_t)len) return false;
+
+        size_t vecSize = values.size();
+        if (write(fd, &vecSize, sizeof(vecSize)) != sizeof(vecSize)) return false;
+        for (double d : values) {
+            if (write(fd, &d, sizeof(d)) != sizeof(d)) return false;
+        }
+
+        if (write(fd, &id, sizeof(id)) != sizeof(id)) return false;
+        return true;
+    }
+
+    bool ReadFromFd(int fd) override {
+        size_t len;
+        if (read(fd, &len, sizeof(len)) != sizeof(len)) return false;
+        name.resize(len);
+        if (len > 0 && read(fd, &name[0], len) != (ssize_t)len) return false;
+
+        size_t vecSize;
+        if (read(fd, &vecSize, sizeof(vecSize)) != sizeof(vecSize)) return false;
+        values.resize(vecSize);
+        for (size_t i = 0; i < vecSize; ++i) {
+            if (read(fd, &values[i], sizeof(double)) != sizeof(double)) return false;
+        }
+
+        if (read(fd, &id, sizeof(id)) != sizeof(id)) return false;
+        return true;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const CC_LL& obj) {
+        os << "Name: " << obj.name << ", Id: " << obj.id << ", Values: [";
+        for (size_t i = 0; i < obj.values.size(); ++i) {
+            if (i > 0) os << ", ";
+            os << obj.values[i];
+        }
+        os << "]";
+        return os;
+    }
+};
 
 class Serializer {
 public:
@@ -163,32 +213,36 @@ private:
 };
 
 void test_v4() {
-    Serializable::creators.emplace(0,[]()->Serializable* {return new CA_LL();});
-    Serializable::creators.emplace(1,[]()->Serializable* {return new CB_LL();});
-    
+    Serializable::creators.emplace(0, []() -> Serializable* { return new CA_LL(); });
+    Serializable::creators.emplace(1, []() -> Serializable* { return new CB_LL(); });
+    Serializable::creators.emplace(2, []() -> Serializable* { return new CC_LL(); });
+
     CA_LL a1("first", 10);
     CB_LL b1("second", 3.14);
-    CA_LL a2("third", 20);
+    std::vector<double> vals = {1.1, 2.2, 3.3};
+    CC_LL c1("extra", vals, 42);
 
-    std::vector<const Serializable*> input = {&a1, &b1, &a2};
+    std::vector<const Serializable*> input = {&a1, &b1, &c1};
 
     Serializer ser;
-    if (!ser.Serialize("v3_data", input)) {
+    if (!ser.Serialize("v4_data", input)) {
         std::cerr << "Serialize failed!\n";
         return;
     }
 
     std::vector<Serializable*> output;
-    if (!ser.Deserialize("v3_data", output)) {
+    if (!ser.Deserialize("v4_data", output)) {
         std::cerr << "Deserialize failed!\n";
         return;
     }
 
-    std::cout << "[v3] ";
+    std::cout << "[v4] ";
     for (auto* obj : output) {
         if (auto* p = dynamic_cast<CA_LL*>(obj))
             std::cout << "{" << *p << "} ";
         else if (auto* p = dynamic_cast<CB_LL*>(obj))
+            std::cout << "{" << *p << "} ";
+        else if (auto* p = dynamic_cast<CC_LL*>(obj))
             std::cout << "{" << *p << "} ";
     }
     std::cout << '\n';
