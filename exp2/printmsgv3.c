@@ -1,13 +1,13 @@
 #include <stdio.h>
 const char* get_id(){
-	return "china";
+	return "canada";
 }
 
 const char* get_desc(){
-	return "print hello china";
+	return "print hello canacda";
 }
 
 
 void print_message(void) {
-    printf("Hello China\n");
+    printf("Hello Canada\n");
 }
