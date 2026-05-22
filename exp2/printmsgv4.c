@@ -1,13 +1,24 @@
 #include <stdio.h>
+#include "interface.h"
 
-const char* get_id(){
+static const char* get_id(){
 	return "usa";
 }
 
-const char* get_desc(){
+static const char* get_desc(){
 	return "print hello usa";
 }
 
-void print_message(void) {
+
+static void print_message(void) {
     printf("Hello USA\n");
+}
+
+struct PluginInterface* get_plugin_interface(void) {
+    static struct PluginInterface iface = {
+        .get_id = get_id,
+        .get_desc = get_desc,
+        .print_message = print_message
+    };
+    return &iface;
 }
