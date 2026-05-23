@@ -71,14 +71,15 @@ public:
 };
 
 class MemoryWriter : public Writer {
-    std::vector<char> data_;
+    std::vector<char>& dest_data_; 
 public:
-   bool write(const void* buf, size_t len) override {
+    explicit MemoryWriter(std::vector<char>& dest) : dest_data_(dest) {}
+
+    bool write(const void* buf, size_t len) override {
         const char* src = static_cast<const char*>(buf);
-        data_.insert(data_.end(), src, src + len);
+        dest_data_.insert(dest_data_.end(), src, src + len);
         return true;
     }
-    const std::vector<char>& getData() const { return data_; }
 };
 
 class MemoryReader : public Reader {
@@ -378,15 +379,16 @@ void test_memory() {
     CC_LL c1("mem_name", vals, 99);
 
     std::vector<const Serializable*> input = {&a1, &b1, &c1};
+    std::vector<char> SerializedData;
 
     Serializer ser;
-    MemoryWriter memWriter;
+    MemoryWriter memWriter(SerializedData);
     if (!ser.Serialize(memWriter, input)) {
         std::cerr << "Memory serialize failed!\n";
         return;
     }
 
-    MemoryReader memReader(memWriter.getData());
+    MemoryReader memReader(SerializedData);
     std::vector<Serializable*> output;
     if (!ser.Deserialize(memReader, output)) {
         std::cerr << "Memory deserialize failed!\n";
